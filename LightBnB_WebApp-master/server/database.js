@@ -128,12 +128,13 @@ exports.getAllReservations = getAllReservations;
  * @param {*} limit The number of results to return.
  * @return {Promise<[{}]>}  A promise to the properties.
  */
-const getAllProperties = function(options, limit = 50) {
+const getAllProperties = function(options, limit = 10) {
 
+  
   const queryParams = [];
 
   let queryString = `
-  SELECT properties.*, avg(property_reviews.rating) as average_rating
+  SELECT DISTINCT properties.*, avg(property_reviews.rating) as average_rating
   FROM properties
   JOIN property_reviews ON properties.id = property_id
   `;
@@ -158,19 +159,20 @@ const getAllProperties = function(options, limit = 50) {
     queryString += `AND cost_per_night <= $${queryParams.length} `;
   }
 
+  queryString += `GROUP BY properties.id `
+
   if (options.minimum_rating) {
     queryParams.push(Number(options.minimum_rating));
-    queryString += `AND rating >= $${queryParams.length} `;
+    queryString += ` HAVING avg(property_reviews.rating) >= $${queryParams.length} `;
   }
 
   queryParams.push(limit);
   queryString += `
-  GROUP BY properties.id
   ORDER BY cost_per_night
   LIMIT $${queryParams.length};
   `;
 
-  console.log(queryString, queryParams, options.owner_id);
+  console.log(queryString, queryParams, options);
   return pool
     .query(queryString, queryParams)
     .then((result) => {
